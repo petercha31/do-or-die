@@ -1,0 +1,27 @@
+---
+description: Flutter 위젯은 복제하지 않고 재사용한다
+globs: lib/**/*.dart
+alwaysApply: false
+---
+
+# 컴포넌트 재사용
+
+화면을 만들기 전에 `lib/widgets/`에서 같은 역할의 위젯을 찾는다. 있으면 매개변수를 늘려 그 위젯을 쓴다. 같은 구성을 다시 그리지 않는다.
+
+같은 구성이 두 곳에서 필요하면 그때 공통 위젯으로 뺀다.
+
+공통 위젯은 `lib/widgets/`에 둔다. 한 화면에서만 쓰는 조합만 그 화면 파일에 둔다.
+
+```dart
+// 나쁨: 화면마다 버튼을 다시 그림
+FilledButton(
+  onPressed: onSave,
+  child: Text('저장'),
+);
+
+// 좋음: 하나의 위젯에 문구와 동작을 넘긴다
+AppButton(
+  label: '저장',
+  onPressed: onSave,
+);
+```
