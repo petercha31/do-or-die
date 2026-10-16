@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'calendar_screen.dart';
+import 'gemini_response_screen.dart';
+import 'goal_detail_screen.dart';
+import 'goal_register_screen.dart';
 import 'widgets/app_button.dart';
 import 'youtube_blocker.dart';
 
@@ -11,10 +15,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _Goal {
-  _Goal(this.text);
+  _Goal(this.text, {this.verification = ''});
 
   final String text;
-  bool achieved = false;
+  final String verification;
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -53,6 +57,52 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _openResponseScreen() async {
+    final registered = await Navigator.of(context).push<RegisteredGoal>(
+      MaterialPageRoute<RegisteredGoal>(
+        builder: (context) => GeminiResponseScreen(
+          sentence: _controller.text.trim(),
+        ),
+      ),
+    );
+    if (!mounted || registered == null) {
+      return;
+    }
+    _addRegisteredGoal(registered);
+  }
+
+  void _openCalendar() {
+    final today = DateTime.now();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => CalendarScreen(
+          initialDate: DateTime(today.year, today.month, today.day),
+        ),
+      ),
+    );
+  }
+
+  void _openGoalDetail(_Goal goal) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => GoalDetailScreen(
+          text: goal.text,
+          verification: goal.verification,
+        ),
+      ),
+    );
+  }
+
+  void _addRegisteredGoal(RegisteredGoal registered) {
+    setState(() {
+      _goals.insert(
+        0,
+        _Goal(registered.text, verification: registered.verificationTitle),
+      );
+      _controller.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -67,23 +117,37 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'TO DO',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 40,
-                        fontWeight: FontWeight.w900,
-                        height: 1,
-                      ),
-                    ),
-                    Text(
-                      'OR DIE',
-                      style: TextStyle(
-                        color: scheme.primary,
-                        fontSize: 40,
-                        fontWeight: FontWeight.w900,
-                        height: 1,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'TO DO',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1,
+                                ),
+                              ),
+                              Text(
+                                'OR DIE',
+                                style: TextStyle(
+                                  color: scheme.primary,
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        _CalendarBox(onTap: _openCalendar),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     const Text(
@@ -93,12 +157,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 24),
                     TextField(
                       controller: _controller,
-                      minLines: 1,
-                      maxLines: 3,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _addGoal(),
+                      minLines: 6,
+                      maxLines: null,
+                      keyboardType: TextInputType.multiline,
+                      textAlignVertical: TextAlignVertical.top,
                       decoration: const InputDecoration(
                         hintText: '해야 할 일을 입력',
+                        alignLabelWithHint: true,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -110,6 +175,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     AppButton(
                       label: '통제 시작',
                       onPressed: _startControl,
+                    ),
+                    const SizedBox(height: 12),
+                    AppButton(
+                      label: '응답 화면',
+                      onPressed: _openResponseScreen,
                     ),
                     const SizedBox(height: 28),
                     Text(
@@ -144,10 +214,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     final goal = _goals[index];
                     return _GoalTile(
                       text: goal.text,
-                      achieved: goal.achieved,
-                      onAchieved: (achieved) {
-                        setState(() => goal.achieved = achieved);
-                      },
+                      verification: goal.verification,
+                      onTap: () => _openGoalDetail(goal),
                     );
                   },
                 ),
@@ -170,46 +238,58 @@ String _controlMessage(String result) {
   }
 }
 
+class _CalendarBox extends StatelessWidget {
+  const _CalendarBox({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onTap,
+      tooltip: '캘린더',
+      icon: const Text('📅', style: TextStyle(fontSize: 32)),
+    );
+  }
+}
+
 class _GoalTile extends StatelessWidget {
   const _GoalTile({
     required this.text,
-    required this.achieved,
-    required this.onAchieved,
+    required this.verification,
+    required this.onTap,
   });
 
   final String text;
-  final bool achieved;
-  final ValueChanged<bool> onAchieved;
+  final String verification;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surface,
+    return Material(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Checkbox(
-            value: achieved,
-            onChanged: (value) => onAchieved(value ?? false),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(0, 14, 16, 14),
-              child: Text(
-                text,
-                style: TextStyle(
-                  color: achieved ? Colors.white38 : Colors.white,
-                  decoration: achieved ? TextDecoration.lineThrough : null,
-                  decorationColor: Colors.white38,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(text),
+              if (verification.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  verification,
+                  style: const TextStyle(color: Colors.white70),
                 ),
-              ),
-            ),
+              ],
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

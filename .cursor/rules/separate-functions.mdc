@@ -1,0 +1,20 @@
+---
+alwaysApply: false
+---
+# 함수 분리
+
+한 함수는 한 가지 일만 한다. 검증, 저장, 화면 갱신이 한 함수에 있으면 나눈다.
+
+이름은 그 함수가 하는 일을 말한다. 호출하는 쪽은 짧은 흐름만 남긴다.
+
+```dart
+// 나쁨: 한 함수가 검사와 저장을 같이 한다
+void submit(String text) {
+  if (text.trim().isEmpty) return;
+  goals.insert(0, text.trim());
+}
+
+// 좋음
+String? validateGoal(String text) { /* ... */ }
+void addGoal(String text) { /* ... */ }
+```

@@ -5,7 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:do_or_die/main.dart';
 
 void main() {
-  testWidgets('목표를 등록하고 달성으로 체크한다', (WidgetTester tester) async {
+  testWidgets('목표를 등록하면 상세 화면으로 들어간다', (WidgetTester tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(800, 2000);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
     await tester.pumpWidget(const DoOrDieApp());
 
     expect(find.text('TO DO'), findsOneWidget);
@@ -19,14 +24,21 @@ void main() {
     expect(find.text('마트에서 장보기'), findsOneWidget);
     expect(find.text('아직 목표가 없습니다'), findsNothing);
     expect(find.text('목표 1'), findsOneWidget);
+    expect(find.byType(Checkbox), findsNothing);
 
-    await tester.tap(find.byType(Checkbox));
-    await tester.pump();
+    await tester.tap(find.text('마트에서 장보기'));
+    await tester.pumpAndSettle();
 
-    expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue);
+    expect(find.text('상세'), findsOneWidget);
+    expect(find.text('마트에서 장보기'), findsWidgets);
   });
 
   testWidgets('빈 문장은 등록되지 않는다', (WidgetTester tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(800, 2000);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
     await tester.pumpWidget(const DoOrDieApp());
 
     await tester.enterText(find.byType(TextField), '   ');
@@ -35,6 +47,16 @@ void main() {
     final button = tester.widget<FilledButton>(find.widgetWithText(FilledButton, '등록'));
     expect(button.onPressed, isNull);
     expect(find.text('아직 목표가 없습니다'), findsOneWidget);
+  });
+
+  testWidgets('캘린더를 누르면 캘린더 화면으로 들어간다', (WidgetTester tester) async {
+    await tester.pumpWidget(const DoOrDieApp());
+
+    await tester.tap(find.text('📅'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('캘린더'), findsOneWidget);
+    expect(find.byType(CalendarDatePicker), findsOneWidget);
   });
 
   testWidgets('통제 시작 버튼을 누르면 유튜브 차단 안내가 나온다', (WidgetTester tester) async {

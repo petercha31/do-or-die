@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'home_screen.dart';
 
@@ -17,6 +18,13 @@ class DoOrDieApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'TO DO OR DIE',
+      locale: const Locale('ko'),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('ko')],
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: background,
@@ -44,16 +52,6 @@ class DoOrDieApp extends StatelessWidget {
             textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
-        ),
-        checkboxTheme: CheckboxThemeData(
-          fillColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return red;
-            }
-            return Colors.transparent;
-          }),
-          checkColor: const WidgetStatePropertyAll(Colors.white),
-          side: const BorderSide(color: Colors.white54, width: 1.5),
         ),
       ),
       home: const HomeScreen(),
