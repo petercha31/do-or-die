@@ -1,79 +1,99 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:do_or_die/calendar_screen.dart';
 import 'package:do_or_die/main.dart';
+import 'package:do_or_die/services/goals/goal_store.dart';
 
 void main() {
-  testWidgets('목표를 등록하면 상세 화면으로 들어간다', (WidgetTester tester) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(800, 2000);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(tester.view.resetPhysicalSize);
-
-    await tester.pumpWidget(const DoOrDieApp());
-
-    expect(find.text('TO DO'), findsOneWidget);
-    expect(find.text('아직 목표가 없습니다'), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField), '  마트에서 장보기  ');
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '등록'));
-    await tester.pump();
-
-    expect(find.text('마트에서 장보기'), findsOneWidget);
-    expect(find.text('아직 목표가 없습니다'), findsNothing);
-    expect(find.text('목표 1'), findsOneWidget);
-    expect(find.byType(Checkbox), findsNothing);
-
-    await tester.tap(find.text('마트에서 장보기'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('상세'), findsOneWidget);
-    expect(find.text('마트에서 장보기'), findsWidgets);
+  setUpAll(() {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    GoalStore.path = inMemoryDatabasePath;
   });
 
-  testWidgets('빈 문장은 등록되지 않는다', (WidgetTester tester) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(800, 2000);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(tester.view.resetPhysicalSize);
+  setUp(GoalStore.instance.dropConnection);
 
+  Future<void> settleDatabase(WidgetTester tester) async {
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 500)));
+    await tester.pump();
+  }
+
+  testWidgets('응답 화면 버튼을 누르면 입력한 문장으로 응답 화면이 열린다', (WidgetTester tester) async {
     await tester.pumpWidget(const DoOrDieApp());
 
-    await tester.enterText(find.byType(TextField), '   ');
-    await tester.pump();
+    expect(find.text('To Do'), findsOneWidget);
+    expect(find.text('목록'), findsOneWidget);
+    expect(tester.widget<TextField>(find.byType(TextField)).minLines, 1);
 
-    final button = tester.widget<FilledButton>(find.widgetWithText(FilledButton, '등록'));
-    expect(button.onPressed, isNull);
-    expect(find.text('아직 목표가 없습니다'), findsOneWidget);
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    expect(tester.widget<TextField>(find.byType(TextField)).minLines, 5);
+
+    await tester.enterText(find.byType(TextField), '  8시에 샤워한다  ');
+    await tester.tap(find.widgetWithText(FilledButton, '응답 화면'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Gemini 응답'), findsOneWidget);
+    expect(find.text('8시에 샤워한다'), findsOneWidget);
+    await settleDatabase(tester);
   });
 
-  testWidgets('캘린더를 누르면 캘린더 화면으로 들어간다', (WidgetTester tester) async {
+  testWidgets('캘린더의 목표를 누르면 상세 화면으로 들어간다', (WidgetTester tester) async {
+    final now = DateTime.now();
+    await tester.runAsync(
+      () => GoalStore.instance.insert(
+        text: '마트에서 장보기',
+        verification: '영수증',
+        responseJson: '{"title":"영수증"}',
+        startAt: DateTime(now.year, now.month, now.day, 17),
+        endAt: DateTime(now.year, now.month, now.day, 18),
+      ),
+    );
     await tester.pumpWidget(const DoOrDieApp());
 
-    await tester.tap(find.text('📅'));
-    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('캘린더'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await settleDatabase(tester);
 
     expect(find.text('캘린더'), findsOneWidget);
     expect(find.byType(CalendarDatePicker), findsOneWidget);
+
+    final goalText = find.descendant(
+      of: find.byType(CalendarScreen),
+      matching: find.text('마트에서 장보기'),
+    );
+    await tester.ensureVisible(goalText);
+    await tester.pump();
+    await tester.tap(goalText);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('상세'), findsOneWidget);
   });
 
-  testWidgets('통제 시작 버튼을 누르면 유튜브 차단 안내가 나온다', (WidgetTester tester) async {
-    const channel = MethodChannel('do_or_die/app_block');
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
-      expect(call.method, 'startYoutubeBlock');
-      return 'started';
-    });
-    addTearDown(() {
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
-    });
-
+  testWidgets('전체 지우기를 누르면 목록의 목표가 사라진다', (WidgetTester tester) async {
+    await tester.runAsync(
+      () => GoalStore.instance.insert(
+        text: '마트에서 장보기',
+        verification: '영수증',
+        responseJson: '{"title":"영수증"}',
+        startAt: DateTime(2026, 10, 26, 17),
+        endAt: DateTime(2026, 10, 26, 18),
+      ),
+    );
     await tester.pumpWidget(const DoOrDieApp());
+    await settleDatabase(tester);
 
-    await tester.tap(find.widgetWithText(FilledButton, '통제 시작'));
-    await tester.pump();
+    expect(find.text('마트에서 장보기'), findsOneWidget);
 
-    expect(find.text('유튜브 앱 실행을 막았습니다'), findsOneWidget);
+    await tester.tap(find.text('전체 지우기'));
+    await settleDatabase(tester);
+
+    expect(find.text('마트에서 장보기'), findsNothing);
+    expect(find.text('아직 목표가 없습니다'), findsOneWidget);
   });
 }

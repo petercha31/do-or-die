@@ -24,6 +24,10 @@ class MainActivity : FlutterActivity() {
                             result.success("need_accessibility")
                         }
                     }
+                    "stopYoutubeBlock" -> {
+                        ControlPreferences.setYoutubeBlocked(this, false)
+                        result.success("stopped")
+                    }
                     else -> result.notImplemented()
                 }
             }

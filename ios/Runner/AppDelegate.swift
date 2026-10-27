@@ -19,7 +19,7 @@ import UIKit
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     channel.setMethodCallHandler { call, result in
-      if call.method == "startYoutubeBlock" {
+      if call.method == "startYoutubeBlock" || call.method == "stopYoutubeBlock" {
         result("unsupported")
       } else {
         result(FlutterMethodNotImplemented)

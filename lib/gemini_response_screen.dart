@@ -20,6 +20,9 @@ class GeminiResponseScreen extends StatefulWidget {
 class _GeminiResponseScreenState extends State<GeminiResponseScreen> {
   final _responseController = TextEditingController();
   var _options = const <VerificationOption>[];
+  DateTime? _startAt;
+  DateTime? _endAt;
+  String? _formatError;
   int? _selectedIndex;
   var _calling = false;
 
@@ -73,6 +76,10 @@ class _GeminiResponseScreenState extends State<GeminiResponseScreen> {
               textAlignVertical: TextAlignVertical.top,
               decoration: const InputDecoration(hintText: '응답'),
             ),
+            if (_formatError != null) ...[
+              const SizedBox(height: 12),
+              Text(_formatError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ],
             if (_options.isNotEmpty) ...[
               const SizedBox(height: 24),
               const SectionLabel('인증 방법'),
@@ -95,15 +102,19 @@ class _GeminiResponseScreenState extends State<GeminiResponseScreen> {
   }
 
   void _showResponse(String response) {
-    List<VerificationOption> options = const [];
+    ParsedVerificationOptions? parsed;
+    String? formatError;
     try {
-      options = parseVerificationOptions(response);
-    } on FormatException {
-      options = const [];
+      parsed = parseVerificationOptions(response);
+    } on FormatException catch (error) {
+      formatError = error.message;
     }
     setState(() {
       _responseController.text = response;
-      _options = options;
+      _options = parsed?.options ?? const [];
+      _startAt = parsed?.startAt;
+      _endAt = parsed?.endAt;
+      _formatError = formatError;
       _selectedIndex = null;
     });
   }
@@ -112,6 +123,9 @@ class _GeminiResponseScreenState extends State<GeminiResponseScreen> {
     setState(() {
       _responseController.text = message;
       _options = const [];
+      _startAt = null;
+      _endAt = null;
+      _formatError = null;
       _selectedIndex = null;
     });
   }
@@ -123,6 +137,9 @@ class _GeminiResponseScreenState extends State<GeminiResponseScreen> {
         builder: (context) => GoalRegisterScreen(
           sentence: widget.sentence,
           option: _options[index],
+          responseJson: _options[index].json,
+          startAt: _startAt!,
+          endAt: _endAt!,
         ),
       ),
     );
@@ -186,7 +203,7 @@ Future<String> _requestVerificationOptions(String sentence) async {
     throw StateError('GEMINI_API_KEY가 없습니다');
   }
   final response = await GeminiService(apiKey: apiKey).generate(
-    '${GeminiPrompts.verificationOptions}$sentence',
+    '${GeminiPrompts.verificationOptions}${localIso8601(DateTime.now())}\n문장:\n$sentence',
   );
   return response ?? '';
 }

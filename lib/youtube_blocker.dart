@@ -10,4 +10,9 @@ class YoutubeBlocker {
     final result = await _channel.invokeMethod<String>('startYoutubeBlock');
     return result ?? 'unsupported';
   }
+
+  Future<String> stop() async {
+    final result = await _channel.invokeMethod<String>('stopYoutubeBlock');
+    return result ?? 'unsupported';
+  }
 }
