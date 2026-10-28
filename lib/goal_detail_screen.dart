@@ -15,9 +15,7 @@ import 'youtube_blocker.dart';
 
 Future<void> openGoalDetail(BuildContext context, StoredGoal goal) {
   return Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (context) => GoalDetailScreen(goal: goal),
-    ),
+    MaterialPageRoute<void>(builder: (context) => GoalDetailScreen(goal: goal)),
   );
 }
 
@@ -105,7 +103,9 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -241,6 +241,52 @@ String? verificationWindowMessage(StoredGoal goal, DateTime now) {
   return null;
 }
 
+enum VerificationIndicator {
+  before,
+  during,
+  passed,
+  failed;
+
+  String get label {
+    switch (this) {
+      case VerificationIndicator.before:
+        return '인증전';
+      case VerificationIndicator.during:
+        return '인증중';
+      case VerificationIndicator.passed:
+        return '인증완료';
+      case VerificationIndicator.failed:
+        return '인증실패';
+    }
+  }
+}
+
+/// 목록 점 색에 쓸 상태. 통과, 실패, 인증 전, 인증 가능 시간일 때 값이 있다.
+VerificationIndicator? verificationIndicator(StoredGoal goal, DateTime now) {
+  if (goal.verdict == 'pass') {
+    return VerificationIndicator.passed;
+  }
+  if (goal.verdict == 'fail') {
+    return VerificationIndicator.failed;
+  }
+  if (goal.verdict.isNotEmpty) {
+    return null;
+  }
+  final startAt = goal.startAt;
+  if (startAt == null) {
+    return VerificationIndicator.before;
+  }
+  final opensAt = startAt.subtract(verificationWindow);
+  final closesAt = startAt.add(verificationWindow);
+  if (now.isBefore(opensAt)) {
+    return VerificationIndicator.before;
+  }
+  if (now.isAfter(closesAt)) {
+    return null;
+  }
+  return VerificationIndicator.during;
+}
+
 String _buttonLabel({required bool passed, required bool verifying}) {
   if (passed) {
     return '인증 완료';
@@ -272,18 +318,18 @@ Future<VerificationVerdict> _requestVerdict(
   if (apiKey == null) {
     throw StateError('GEMINI_API_KEY가 없습니다');
   }
-  final response = await GeminiService(apiKey: apiKey).generateWithImage(
-    _verdictPrompt(goal, submittedAt),
-    image,
-    mimeType,
-  );
+  final response = await GeminiService(
+    apiKey: apiKey,
+  ).generateWithImage(_verdictPrompt(goal, submittedAt), image, mimeType);
   return parseVerificationVerdict(response ?? '');
 }
 
 String _verdictPrompt(StoredGoal goal, DateTime submittedAt) {
   final startAt = goal.startAt;
   final endAt = goal.endAt;
-  final method = goal.responseJson.isNotEmpty ? goal.responseJson : goal.verification;
+  final method = goal.responseJson.isNotEmpty
+      ? goal.responseJson
+      : goal.verification;
   return '${GeminiPrompts.verifyEvidence}'
       '목표: ${goal.text}\n'
       '인증 방법: $method\n'

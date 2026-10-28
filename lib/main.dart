@@ -49,8 +49,13 @@ class DoOrDieApp extends StatelessWidget {
             disabledBackgroundColor: const Color(0xFF3A2A2A),
             disabledForegroundColor: Colors.white38,
             minimumSize: const Size.fromHeight(52),
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
           ),
         ),
       ),

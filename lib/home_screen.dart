@@ -77,7 +77,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openResponseScreen() async {
     final registered = await Navigator.of(context).push<RegisteredGoal>(
       MaterialPageRoute<RegisteredGoal>(
-        builder: (context) => GeminiResponseScreen(sentence: _controller.text.trim()),
+        builder: (context) =>
+            GeminiResponseScreen(sentence: _controller.text.trim()),
       ),
     );
     if (!mounted || registered == null) {
@@ -163,7 +164,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -190,14 +193,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       foregroundColor: Theme.of(context).colorScheme.primary,
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                     ),
                     child: const Text('전체 지우기'),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              Expanded(child: _GoalList(goals: _goals, onTap: _openGoal)),
+              const _IndicatorLegend(),
+              const SizedBox(height: 12),
+              Expanded(
+                child: _GoalList(goals: _goals, onTap: _openGoal),
+              ),
               const SizedBox(height: 12),
               AnimatedSize(
                 duration: const Duration(milliseconds: 200),
@@ -217,10 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              AppButton(
-                label: '응답 화면',
-                onPressed: _openResponseScreen,
-              ),
+              AppButton(label: '응답 화면', onPressed: _openResponseScreen),
             ],
           ),
         ),
@@ -266,7 +273,10 @@ class _HomeHeader extends StatelessWidget {
                   ),
                   children: [
                     const TextSpan(text: 'or '),
-                    TextSpan(text: 'DIE', style: TextStyle(color: scheme.primary)),
+                    TextSpan(
+                      text: 'DIE',
+                      style: TextStyle(color: scheme.primary),
+                    ),
                   ],
                 ),
               ),
@@ -307,7 +317,10 @@ class _DateBox extends StatelessWidget {
                   child: Center(
                     child: Text(
                       '$day',
-                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),
@@ -390,10 +403,7 @@ class _GoalListState extends State<_GoalList> {
     if (goals.isEmpty) {
       return const Align(
         alignment: Alignment.topLeft,
-        child: Text(
-          '아직 목표가 없습니다',
-          style: TextStyle(color: Colors.white38),
-        ),
+        child: Text('아직 목표가 없습니다', style: TextStyle(color: Colors.white38)),
       );
     }
 
@@ -402,9 +412,14 @@ class _GoalListState extends State<_GoalList> {
       separatorBuilder: (context, index) => const SizedBox(height: 4),
       itemBuilder: (context, index) {
         final goal = goals[index];
+        final indicator = verificationIndicator(goal, _now);
         return _GoalLine(
           text: goal.text,
-          remaining: goal.startAt == null ? null : remainingMinutesSeconds(goal.startAt!, _now),
+          remaining: goal.startAt == null
+              ? null
+              : remainingMinutesSeconds(goal.startAt!, _now),
+          color: _indicatorColor(indicator, Theme.of(context).colorScheme),
+          status: indicator?.label,
           onTap: () => widget.onTap(goal),
         );
       },
@@ -412,11 +427,98 @@ class _GoalListState extends State<_GoalList> {
   }
 }
 
+class _IndicatorLegend extends StatelessWidget {
+  const _IndicatorLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Wrap(
+      spacing: 16,
+      runSpacing: 8,
+      children: [
+        for (final indicator in VerificationIndicator.values)
+          _LegendItem(
+            color: _indicatorColor(indicator, scheme),
+            label: indicator.label,
+          ),
+      ],
+    );
+  }
+}
+
+class _LegendItem extends StatelessWidget {
+  const _LegendItem({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _IndicatorDot(color: color),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
+        ),
+      ],
+    );
+  }
+}
+
+class _IndicatorDot extends StatelessWidget {
+  const _IndicatorDot({required this.color, this.label});
+
+  final Color color;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final dot = Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+    final name = label;
+    if (name == null) {
+      return dot;
+    }
+    return Semantics(label: name, child: dot);
+  }
+}
+
+Color _indicatorColor(VerificationIndicator? indicator, ColorScheme scheme) {
+  switch (indicator) {
+    case VerificationIndicator.before:
+      return const Color(0xFFF5C14A);
+    case VerificationIndicator.during:
+      return const Color(0xFF7EB6FF);
+    case VerificationIndicator.passed:
+      return const Color(0xFF3DDC84);
+    case VerificationIndicator.failed:
+      return scheme.primary;
+    case null:
+      return Colors.white70;
+  }
+}
+
 class _GoalLine extends StatelessWidget {
-  const _GoalLine({required this.text, required this.remaining, required this.onTap});
+  const _GoalLine({
+    required this.text,
+    required this.remaining,
+    required this.color,
+    required this.status,
+    required this.onTap,
+  });
 
   final String text;
   final String? remaining;
+  final Color color;
+  final String? status;
   final VoidCallback onTap;
 
   @override
@@ -427,18 +529,10 @@ class _GoalLine extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(color: Colors.white70, shape: BoxShape.circle),
-            ),
+            _IndicatorDot(color: color, label: status),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
             if (remaining != null) ...[
               const SizedBox(width: 12),
