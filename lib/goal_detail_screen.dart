@@ -222,23 +222,30 @@ class _JsonResponse extends StatelessWidget {
   }
 }
 
-/// 시작시각 앞뒤로 인증할 수 있는 시간. 폭을 바꿀 때는 이 값만 조정한다.
+/// 시작시각보다 이 시간 전부터 인증할 수 있다. 앞당길 시간을 바꿀 때는 이 값만 조정한다.
 const verificationWindow = Duration(minutes: 5);
 
 String? verificationWindowMessage(StoredGoal goal, DateTime now) {
+  final opensAt = _verificationOpensAt(goal);
+  if (opensAt == null) {
+    return null;
+  }
+  if (now.isBefore(opensAt)) {
+    return '아직 인증 시간이 아닙니다';
+  }
+  final endAt = goal.endAt;
+  if (endAt != null && now.isAfter(endAt)) {
+    return '인증 가능 시간이 지났습니다';
+  }
+  return null;
+}
+
+DateTime? _verificationOpensAt(StoredGoal goal) {
   final startAt = goal.startAt;
   if (startAt == null) {
     return null;
   }
-  final opensAt = startAt.subtract(verificationWindow);
-  final closesAt = startAt.add(verificationWindow);
-  if (now.isBefore(opensAt)) {
-    return '아직 인증 시간이 아닙니다';
-  }
-  if (now.isAfter(closesAt)) {
-    return '인증 가능 시간이 지났습니다';
-  }
-  return null;
+  return startAt.subtract(verificationWindow);
 }
 
 enum VerificationIndicator {
@@ -272,16 +279,12 @@ VerificationIndicator? verificationIndicator(StoredGoal goal, DateTime now) {
   if (goal.verdict.isNotEmpty) {
     return null;
   }
-  final startAt = goal.startAt;
-  if (startAt == null) {
+  final opensAt = _verificationOpensAt(goal);
+  if (opensAt == null || now.isBefore(opensAt)) {
     return VerificationIndicator.before;
   }
-  final opensAt = startAt.subtract(verificationWindow);
-  final closesAt = startAt.add(verificationWindow);
-  if (now.isBefore(opensAt)) {
-    return VerificationIndicator.before;
-  }
-  if (now.isAfter(closesAt)) {
+  final endAt = goal.endAt;
+  if (endAt != null && now.isAfter(endAt)) {
     return null;
   }
   return VerificationIndicator.during;

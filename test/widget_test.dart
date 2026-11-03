@@ -16,7 +16,9 @@ void main() {
   setUp(GoalStore.instance.dropConnection);
 
   Future<void> settleDatabase(WidgetTester tester) async {
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 500)));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 500)),
+    );
     await tester.pump();
   }
 
@@ -95,5 +97,16 @@ void main() {
 
     expect(find.text('마트에서 장보기'), findsNothing);
     expect(find.text('아직 목표가 없습니다'), findsOneWidget);
+  });
+
+  testWidgets('프로필 아이콘을 누르면 로그인 화면이 열린다', (WidgetTester tester) async {
+    await tester.pumpWidget(const DoOrDieApp());
+    await tester.tap(find.byTooltip('로그인'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('로그인'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '카카오로 로그인'), findsOneWidget);
+    await settleDatabase(tester);
   });
 }

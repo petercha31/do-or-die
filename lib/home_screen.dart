@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'calendar_screen.dart';
 import 'gemini_response_screen.dart';
+import 'login_screen.dart';
 import 'goal_detail_screen.dart';
 import 'goal_time_label.dart';
 import 'goal_register_screen.dart';
@@ -72,6 +73,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  void _openLogin() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (context) => const LoginScreen()));
   }
 
   Future<void> _openResponseScreen() async {
@@ -181,7 +188,11 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _HomeHeader(day: today, onCalendarTap: _openCalendar),
+              _HomeHeader(
+                day: today,
+                onCalendarTap: _openCalendar,
+                onLoginTap: _openLogin,
+              ),
               const SizedBox(height: 32),
               Row(
                 children: [
@@ -237,10 +248,15 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.day, required this.onCalendarTap});
+  const _HomeHeader({
+    required this.day,
+    required this.onCalendarTap,
+    required this.onLoginTap,
+  });
 
   final int day;
   final VoidCallback onCalendarTap;
+  final VoidCallback onLoginTap;
 
   @override
   Widget build(BuildContext context) {
@@ -283,7 +299,7 @@ class _HomeHeader extends StatelessWidget {
             ],
           ),
         ),
-        const _ProfileMark(),
+        _ProfileMark(onTap: onLoginTap),
       ],
     );
   }
@@ -334,18 +350,32 @@ class _DateBox extends StatelessWidget {
 }
 
 class _ProfileMark extends StatelessWidget {
-  const _ProfileMark();
+  const _ProfileMark({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white24, width: 2),
+    return Tooltip(
+      message: '로그인',
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white24, width: 2),
+            ),
+            child: const Icon(Icons.person_outline, size: 36),
+          ),
+        ),
       ),
-      child: const Icon(Icons.person_outline, size: 36),
     );
   }
 }

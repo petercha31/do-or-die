@@ -15,16 +15,20 @@ void main() {
     endAt: endAt,
   );
 
-  test('시작시각 전후 5분 동안은 인증할 수 있다', () {
+  test('시작 5분 전부터 종료시각까지 인증할 수 있다', () {
     expect(
       verificationWindowMessage(goal, startAt.subtract(verificationWindow)),
       isNull,
     );
     expect(verificationWindowMessage(goal, startAt), isNull);
     expect(
-      verificationWindowMessage(goal, startAt.add(verificationWindow)),
+      verificationWindowMessage(
+        goal,
+        startAt.add(verificationWindow).add(const Duration(seconds: 1)),
+      ),
       isNull,
     );
+    expect(verificationWindowMessage(goal, endAt), isNull);
   });
 
   test('시작 5분보다 이르면 인증할 수 없다', () {
@@ -39,12 +43,9 @@ void main() {
     );
   });
 
-  test('시작 5분이 지나면 종료시각 전이어도 인증할 수 없다', () {
+  test('종료시각이 지나면 인증할 수 없다', () {
     expect(
-      verificationWindowMessage(
-        goal,
-        startAt.add(verificationWindow).add(const Duration(seconds: 1)),
-      ),
+      verificationWindowMessage(goal, endAt.add(const Duration(seconds: 1))),
       '인증 가능 시간이 지났습니다',
     );
   });
@@ -83,9 +84,13 @@ void main() {
       VerificationIndicator.during,
     );
     expect(
-      verificationIndicator(goal, startAt.add(verificationWindow)),
+      verificationIndicator(
+        goal,
+        startAt.add(verificationWindow).add(const Duration(seconds: 1)),
+      ),
       VerificationIndicator.during,
     );
+    expect(verificationIndicator(goal, endAt), VerificationIndicator.during);
   });
 
   test('실패 판정이면 인증실패다', () {
@@ -116,10 +121,7 @@ void main() {
 
   test('인증 시간이 지난 목표는 색 표시가 없다', () {
     expect(
-      verificationIndicator(
-        goal,
-        startAt.add(verificationWindow).add(const Duration(seconds: 1)),
-      ),
+      verificationIndicator(goal, endAt.add(const Duration(seconds: 1))),
       isNull,
     );
   });
