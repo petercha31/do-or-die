@@ -3,6 +3,61 @@ import 'package:sqflite/sqflite.dart';
 
 const goalDatabaseFile = 'goals.db';
 
+/// One row from `POST /goals/list/` (server primary key is the app row `id`).
+class GoalServerRow {
+  const GoalServerRow({
+    required this.id,
+    required this.text,
+    required this.verification,
+    required this.responseJson,
+    required this.createdAt,
+    required this.startAt,
+    required this.endAt,
+    required this.verdict,
+    required this.verdictReason,
+    this.verifiedAt,
+  });
+
+  final int id;
+  final String text;
+  final String verification;
+  final String responseJson;
+  final DateTime createdAt;
+  final DateTime startAt;
+  final DateTime endAt;
+  final String verdict;
+  final String verdictReason;
+  final DateTime? verifiedAt;
+
+  factory GoalServerRow.fromJson(Map<String, dynamic> json) {
+    final verifiedRaw = json['verifiedAt'];
+    return GoalServerRow(
+      id: _asInt(json['id']),
+      text: json['text'] as String,
+      verification: json['verification'] as String,
+      responseJson: json['responseJson'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      startAt: DateTime.parse(json['startAt'] as String),
+      endAt: DateTime.parse(json['endAt'] as String),
+      verdict: json['verdict'] as String? ?? '',
+      verdictReason: json['verdictReason'] as String? ?? '',
+      verifiedAt: verifiedRaw == null
+          ? null
+          : DateTime.parse(verifiedRaw as String),
+    );
+  }
+}
+
+int _asInt(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  throw FormatException('Goal id must be a number, got $value');
+}
+
 class StoredGoal {
   const StoredGoal({
     required this.id,
@@ -124,6 +179,43 @@ class GoalStore {
     await database.delete('goals');
   }
 
+  /// Clears local goals and inserts the server list (same numeric ids as PostgreSQL).
+  Future<void> replaceWithServerGoals(List<GoalServerRow> rows) async {
+    final database = await _database();
+    await database.transaction((txn) async {
+      await txn.delete('goals');
+      var maxId = 0;
+      for (final row in rows) {
+        if (row.id > maxId) {
+          maxId = row.id;
+        }
+        await txn.insert('goals', {
+          'id': row.id,
+          'text': row.text,
+          'verification': row.verification,
+          'response_json': row.responseJson,
+          'created_at': row.createdAt.millisecondsSinceEpoch,
+          'start_at': row.startAt.millisecondsSinceEpoch,
+          'end_at': row.endAt.millisecondsSinceEpoch,
+          'verdict': row.verdict,
+          'verdict_reason': row.verdictReason,
+          'verified_at': row.verifiedAt?.millisecondsSinceEpoch,
+        });
+      }
+      try {
+        await txn.rawDelete("DELETE FROM sqlite_sequence WHERE name = 'goals'");
+        if (maxId > 0) {
+          await txn.rawInsert(
+            "INSERT INTO sqlite_sequence(name, seq) VALUES('goals', ?)",
+            [maxId],
+          );
+        }
+      } catch (_) {
+        // `sqlite_sequence` 없음(아직 auto_increment 미사용) 등은 무시
+      }
+    });
+  }
+
   Future<List<StoredGoal>> list() {
     return _list(orderBy: 'created_at DESC, id DESC');
   }
@@ -177,7 +269,11 @@ Future<void> _createGoals(Database database, int version) {
   ''');
 }
 
-Future<void> _upgradeGoals(Database database, int oldVersion, int newVersion) async {
+Future<void> _upgradeGoals(
+  Database database,
+  int oldVersion,
+  int newVersion,
+) async {
   if (oldVersion < 2) {
     await database.execute(
       "ALTER TABLE goals ADD COLUMN response_json TEXT NOT NULL DEFAULT ''",
@@ -188,7 +284,9 @@ Future<void> _upgradeGoals(Database database, int oldVersion, int newVersion) as
     await database.execute('ALTER TABLE goals ADD COLUMN end_at INTEGER');
   }
   if (oldVersion < 4) {
-    await database.execute("ALTER TABLE goals ADD COLUMN verdict TEXT NOT NULL DEFAULT ''");
+    await database.execute(
+      "ALTER TABLE goals ADD COLUMN verdict TEXT NOT NULL DEFAULT ''",
+    );
     await database.execute(
       "ALTER TABLE goals ADD COLUMN verdict_reason TEXT NOT NULL DEFAULT ''",
     );
@@ -216,7 +314,9 @@ bool _occursOn(StoredGoal goal, DateTime date) {
 }
 
 bool _isSameDay(DateTime left, DateTime right) {
-  return left.year == right.year && left.month == right.month && left.day == right.day;
+  return left.year == right.year &&
+      left.month == right.month &&
+      left.day == right.day;
 }
 
 StoredGoal _storedGoal(Map<String, Object?> row) {

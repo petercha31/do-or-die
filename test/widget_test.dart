@@ -1,10 +1,10 @@
+import 'package:do_or_die/calendar_screen.dart';
+import 'package:do_or_die/main.dart';
+import 'package:do_or_die/services/api/goal_sync.dart';
+import 'package:do_or_die/services/goals/goal_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-
-import 'package:do_or_die/calendar_screen.dart';
-import 'package:do_or_die/main.dart';
-import 'package:do_or_die/services/goals/goal_store.dart';
 
 void main() {
   setUpAll(() {
@@ -13,7 +13,14 @@ void main() {
     GoalStore.path = inMemoryDatabasePath;
   });
 
-  setUp(GoalStore.instance.dropConnection);
+  setUp(() {
+    GoalSyncService.allowSync = false;
+    GoalStore.instance.dropConnection();
+  });
+
+  tearDown(() {
+    GoalSyncService.allowSync = true;
+  });
 
   Future<void> settleDatabase(WidgetTester tester) async {
     await tester.runAsync(

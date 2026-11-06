@@ -8,6 +8,8 @@ import 'login_screen.dart';
 import 'goal_detail_screen.dart';
 import 'goal_time_label.dart';
 import 'goal_register_screen.dart';
+import 'services/api/goal_sync.dart';
+import 'services/api/sync_log.dart';
 import 'services/goals/goal_store.dart';
 import 'services/notifications/goal_reminders.dart';
 import 'widgets/app_button.dart';
@@ -45,10 +47,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _queueGoalAction(Future<void> Function() action) {
-    _goalActions = _goalActions.then((_) => action()).catchError((Object _) {});
+    _goalActions = _goalActions.then((_) => action()).catchError((
+      Object error,
+      StackTrace stackTrace,
+    ) {
+      logSyncError('queued goal action', error, stackTrace);
+    });
   }
 
   Future<void> _loadGoals() async {
+    try {
+      await GoalSyncService.syncIfSignedIn();
+    } catch (error, stackTrace) {
+      logSyncError('_loadGoals syncIfSignedIn', error, stackTrace);
+    }
     try {
       final goals = await GoalStore.instance.list();
       if (!mounted) {
@@ -59,7 +71,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ..clear()
           ..addAll(goals);
       });
-    } catch (_) {
+    } catch (error, stackTrace) {
+      logSyncError('_loadGoals list', error, stackTrace);
       _showMessage('목표를 불러오지 못했습니다');
     }
   }
@@ -75,10 +88,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _openLogin() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (context) => const LoginScreen()));
+  Future<void> _openLogin() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (context) => const LoginScreen()),
+    );
+    if (!mounted) {
+      return;
+    }
+    _queueGoalAction(_loadGoals);
   }
 
   Future<void> _openResponseScreen() async {
@@ -149,6 +166,38 @@ class _HomeScreenState extends State<HomeScreen> {
     _queueGoalAction(_loadGoals);
   }
 
+  Future<void> _fetchTestGoals() async {
+    try {
+      await GoalSyncService.fetchGoalsNow();
+      if (!mounted) {
+        return;
+      }
+      await _loadGoalsSkippingServer();
+      _showMessage('테스트 목록을 가져왔습니다');
+    } catch (error, stackTrace) {
+      logSyncError('_fetchTestGoals', error, stackTrace);
+      _showMessage('가져오지 못했습니다: $error');
+    }
+  }
+
+  /// 서버를 다시 호출하지 않고 로컬 DB만 읽는다(방금 가져온 뒤 중복 요청 방지).
+  Future<void> _loadGoalsSkippingServer() async {
+    try {
+      final goals = await GoalStore.instance.list();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _goals
+          ..clear()
+          ..addAll(goals);
+      });
+    } catch (error, stackTrace) {
+      logSyncError('_loadGoalsSkippingServer list', error, stackTrace);
+      _showMessage('목표를 불러오지 못했습니다');
+    }
+  }
+
   Future<void> _clearGoals() async {
     try {
       await GoalStore.instance.deleteAll();
@@ -198,6 +247,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const SectionLabel('목록'),
                   const Spacer(),
+                  TextButton(
+                    onPressed: () => _queueGoalAction(_fetchTestGoals),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                    ),
+                    child: const Text('테스트 목록 가져오기'),
+                  ),
                   TextButton(
                     onPressed: () => _queueGoalAction(_clearGoals),
                     style: TextButton.styleFrom(

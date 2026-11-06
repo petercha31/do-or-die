@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'home_screen.dart';
+import 'services/api/goal_sync.dart';
+import 'services/api/sync_log.dart';
 import 'services/kakao/kakao_login.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await prepareKakaoSdk();
+  try {
+    await GoalSyncService.syncIfSignedIn();
+  } catch (error, stackTrace) {
+    logSyncError('main syncIfSignedIn', error, stackTrace);
+  }
   runApp(const DoOrDieApp());
 }
 
